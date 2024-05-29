@@ -404,7 +404,9 @@ static void HandleMediaPlayerRecord(const libvlc_event_t * event, void * opaque)
 /// Timer used to update time watch point interpolation on regular intervals
 @property (nonatomic) NSTimer *timeChangeUpdateTimer;
 @property (nonatomic) dispatch_queue_t timeChangeLockQueue;
-
+@property (nonatomic, copy) VLCVideoLockBlock lockBlock;
+@property (nonatomic, copy) VLCVideoUnlockBlock unlockBlock;
+@property (nonatomic, copy) VLCVideoDisplayBlock displayBlock;
 @end
 
 @implementation VLCMediaPlayer
@@ -1306,6 +1308,128 @@ static void HandleMediaPlayerRecord(const libvlc_event_t * event, void * opaque)
     
     return [_snapshots copy];
 }
+
+- (void)setVideoFormat:(NSString *)chroma width:(int)width height:(int)height{
+    libvlc_video_set_format(self.playerInstance, chroma.UTF8String, width, height, width*4);
+}
+
+- (void)setVideoCallbacks:(VLCVideoLockBlock)lock
+                   unlock:(VLCVideoUnlockBlock)unlock
+                  display:(VLCVideoDisplayBlock)display
+                   opaque:(void *)opaque
+{
+    self.lockBlock = lock;
+    self.unlockBlock = unlock;
+    self.displayBlock = display;
+    libvlc_video_set_callbacks(self.playerInstance, lockCallback, unlockCallback, displayCallback, opaque);
+}
+
+- (void)setVideoCallback{
+    libvlc_video_set_callbacks(self.playerInstance, lockCallbackDefine, unlockCallbackDefine, displayCallbackDefine, (__bridge void *)(self));
+}
+
+static void *lockCallback(void *opaque, void **planes) {
+    VLCMediaPlayer *mediaPlayer = (__bridge VLCMediaPlayer *)opaque;
+    if (mediaPlayer.lockBlock) {
+        return mediaPlayer.lockBlock(planes);
+    }
+    return NULL;
+}
+
+static void unlockCallback(void *opaque, void *picture, void *const *planes) {
+    VLCMediaPlayer *mediaPlayer = (__bridge VLCMediaPlayer *)opaque;
+    if (mediaPlayer.unlockBlock) {
+        mediaPlayer.unlockBlock(picture, planes);
+    }
+}
+
+static void displayCallback(void *opaque, void *picture) {
+    VLCMediaPlayer *mediaPlayer = (__bridge VLCMediaPlayer *)opaque;
+    if (mediaPlayer.displayBlock) {
+        mediaPlayer.displayBlock(picture);
+    }
+}
+
+static void *lockCallbackDefine(void *opaque, void **planes) {
+    VLCMediaPlayer *mediaPlayer = (__bridge VLCMediaPlayer *)opaque;
+
+    CVPixelBufferRef pixelBuffer = NULL;
+    if ([mediaPlayer.delegate respondsToSelector:@selector(mediaPlayerCallbackBufferPool)]) {
+        CVPixelBufferPoolRef bufferPool = [mediaPlayer.delegate mediaPlayerCallbackBufferPool];
+        pixelBuffer = [mediaPlayer getPixelBufferFromPool:bufferPool];
+    }
+    
+    if (pixelBuffer) {
+        CVPixelBufferLockBaseAddress(pixelBuffer, 0);
+        planes[0] = CVPixelBufferGetBaseAddress(pixelBuffer);
+    }
+    return (void *)pixelBuffer;
+}
+
+static void unlockCallbackDefine(void *opaque, void *picture, void *const *planes) {
+    CVPixelBufferRef pixelBuffer = (CVPixelBufferRef)picture;
+    if (pixelBuffer) {
+        CVPixelBufferUnlockBaseAddress(pixelBuffer, 0);
+    }
+}
+
+static void displayCallbackDefine(void *opaque, void *picture) {
+    VLCMediaPlayer *mediaPlayer = (__bridge VLCMediaPlayer *)opaque;
+    CVPixelBufferRef pixelBuffer = (CVPixelBufferRef)picture;
+    if ([mediaPlayer.delegate respondsToSelector:@selector(mediaPlayer:displayBuffer:)]) {
+        [mediaPlayer.delegate mediaPlayer:mediaPlayer displayBuffer:pixelBuffer];
+    }
+    CVPixelBufferRelease(pixelBuffer);
+}
+
+- (CVPixelBufferRef)getPixelBufferFromPool:(CVPixelBufferPoolRef)pool {
+    if (pool == NULL) {
+        NSLog(@"Pixel buffer pool is NULL");
+        return NULL;
+    }
+
+    CVPixelBufferRef pixelBuffer = NULL;
+    CVReturn status = CVPixelBufferPoolCreatePixelBuffer(NULL, pool, &pixelBuffer);
+
+    if (status != kCVReturnSuccess) {
+        NSLog(@"Error: Unable to get pixel buffer from pool");
+        return NULL;
+    }
+
+    return pixelBuffer;
+}
+
+- (double)getVideoDuration{
+    long long length = libvlc_media_player_get_length(_playerInstance);
+    return length / 1000.0;
+}
+
+- (float)getVideoFPS {
+    // 获取视频轨道列表
+    libvlc_media_tracklist_t *tracklist = libvlc_media_player_get_tracklist(_playerInstance, libvlc_track_video, false);
+    if (!tracklist) {
+        NSLog(@"Failed to get tracklist");
+        return 0.0;
+    }
+
+    size_t tracklistCount = libvlc_media_tracklist_count(tracklist);
+    float fps = 0.0;
+    for (size_t i = 0; i < tracklistCount; i++) {
+        libvlc_media_track_t *track_t = libvlc_media_tracklist_at(tracklist, i);
+        if (track_t && track_t->i_type == libvlc_track_video) {
+            libvlc_video_track_t *video_track = track_t->video;
+            if (video_track && video_track->i_frame_rate_den != 0) {
+                fps = (float)video_track->i_frame_rate_num / video_track->i_frame_rate_den;
+                break;  // 找到第一个视频轨道后跳出循环
+            }
+        }
+    }
+
+    // 释放轨道列表
+    libvlc_media_tracklist_delete(tracklist);
+    return fps;
+}
+
 
 #if TARGET_OS_IPHONE
 - (nullable UIImage *)lastSnapshot {

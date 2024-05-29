@@ -920,4 +920,58 @@ static const struct event_handler_entry {
     return self.description.hash;
 }
 
+- (void)textSelected:(BOOL)selected{
+    libvlc_media_player_t *p_mi = (libvlc_media_player_t *)_mediaPlayer.libVLCMediaPlayer;
+    if (!p_mi)
+        return;
+    
+    const libvlc_track_type_t type = (libvlc_track_type_t)self.type;
+    libvlc_media_tracklist_t *selected_tracklist_t = libvlc_media_player_get_tracklist(p_mi, type, true);
+    if (!selected_tracklist_t)
+        return;
+    
+    const size_t selectedTracklistCount = libvlc_media_tracklist_count(selected_tracklist_t);
+    NSMutableArray<NSString *> *selectedTrackIDs = [NSMutableArray arrayWithCapacity: (NSUInteger)selectedTracklistCount];
+    for (size_t i = 0; i < selectedTracklistCount; i++) {
+        libvlc_media_track_t *selected_track_t = libvlc_media_tracklist_at(selected_tracklist_t, i);
+        [selectedTrackIDs addObject: @(selected_track_t->psz_id)];
+    }
+    libvlc_media_tracklist_delete(selected_tracklist_t);
+    
+    NSString * const ownTrackId = _trackId;
+    const BOOL isSameTrack = [selectedTrackIDs containsObject: ownTrackId];
+    
+    // already selected || already deselected
+    if ((selected && isSameTrack) || (!selected && !isSameTrack))
+        return;
+    
+    selected ? [selectedTrackIDs addObject: ownTrackId] : [selectedTrackIDs removeObject: ownTrackId];
+    
+    if (type == libvlc_track_audio && selectedTrackIDs.count >= 2) {
+        VKLog(@"WARNING: selecting multiple audio tracks is currently not supported.");
+        return;
+    }
+    
+    if (!selectedTrackIDs.count) {
+        libvlc_media_player_unselect_track_type(p_mi, type);
+        return;
+    }
+    
+    const char *psz_ids = [selectedTrackIDs componentsJoinedByString: @","].UTF8String;
+    libvlc_media_player_select_tracks_by_ids(p_mi, type, psz_ids);
+}
+
+- (void)textSelectedExclusively:(BOOL)selected{
+    libvlc_media_player_t *p_mi = (libvlc_media_player_t *)_mediaPlayer.libVLCMediaPlayer;
+    if (!p_mi)
+        return;
+
+    const char *psz_id = self.trackId.UTF8String;
+    libvlc_media_track_t *track_t = libvlc_media_player_get_track_from_id(p_mi, psz_id);
+    if (!track_t)
+        return;
+    libvlc_media_player_select_track(p_mi, track_t);
+    libvlc_media_track_release(track_t);
+}
+
 @end

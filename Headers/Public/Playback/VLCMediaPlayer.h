@@ -94,6 +94,10 @@ typedef NS_ENUM(NSInteger, VLCDeinterlace)
 OBJC_VISIBLE OBJC_EXTERN
 NSString * VLCMediaPlayerStateToString(VLCMediaPlayerState state);
 
+typedef void *(^VLCVideoLockBlock)(void **planes);
+typedef void (^VLCVideoUnlockBlock)(void *picture, void *const *planes);
+typedef void (^VLCVideoDisplayBlock)(void *picture);
+
 /**
  * Formal protocol declaration for playback delegates.  Allows playback messages
  * to be trapped by delegated objects.
@@ -195,6 +199,10 @@ NSString * VLCMediaPlayerStateToString(VLCMediaPlayerState state);
  * @param url the path to the file that the player recorded to
  */
 - (void)mediaPlayer:(VLCMediaPlayer *)player recordingStoppedAtURL:(nullable NSURL *)url;
+
+- (CVPixelBufferPoolRef)mediaPlayerCallbackBufferPool;
+
+- (void)mediaPlayer:(VLCMediaPlayer *)player displayBuffer:(CVPixelBufferRef)displayBuffer;
 
 @end
 
@@ -822,6 +830,21 @@ typedef NS_ENUM(unsigned, VLCAudioMixMode)
  * Stop current recording
  */
 - (void)stopRecording;
+
+- (void)setVideoFormat:(NSString *)chroma width:(int)width height:(int)height;
+
+- (void)setVideoCallbacks:(VLCVideoLockBlock)lock
+                   unlock:(VLCVideoUnlockBlock)unlock
+                  display:(VLCVideoDisplayBlock)display
+                   opaque:(void *)opaque;
+
+- (void)setVideoCallback;
+
+- (double)getVideoDuration;
+
+- (float)getVideoFPS;
+
+- (int)numberOfSubtitlesTracks;
 
 #pragma mark -
 #pragma mark Renderer
