@@ -691,9 +691,9 @@ NS_SWIFT_NAME(VLCMediaPlayer.Track)
  */
 @property (nonatomic, getter=isSelectedExclusively) BOOL selectedExclusively;
 
-- (void)textSelected:(BOOL)selected;
+- (void)mediaSelected:(BOOL)selected;
 
-- (void)textSelectedExclusively:(BOOL)selected;
+- (void)mediaSelectedExclusively:(BOOL)selected;
 
 
 + (instancetype)new NS_UNAVAILABLE;

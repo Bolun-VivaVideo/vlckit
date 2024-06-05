@@ -844,7 +844,7 @@ typedef NS_ENUM(unsigned, VLCAudioMixMode)
 
 - (float)getVideoFPS;
 
-- (int)numberOfSubtitlesTracks;
+- (void)stopVideoCallback;
 
 #pragma mark -
 #pragma mark Renderer

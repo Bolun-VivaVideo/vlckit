@@ -1430,6 +1430,25 @@ static void displayCallbackDefine(void *opaque, void *picture) {
     return fps;
 }
 
+// 空的锁定回调函数
+void *empty_lock(void *opaque, void **planes) {
+    // 不做任何操作，只是返回 opaque
+    return opaque;
+}
+
+// 空的解锁回调函数
+void empty_unlock(void *opaque, void *picture, void *const *planes) {
+    // 不做任何操作
+}
+
+// 空的显示回调函数
+void empty_display(void *opaque, void *picture) {
+    // 不做任何操作
+}
+
+- (void)stopVideoCallback{
+    libvlc_video_set_callbacks(_playerInstance, NULL, NULL, NULL, NULL);
+}
 
 #if TARGET_OS_IPHONE
 - (nullable UIImage *)lastSnapshot {

@@ -920,7 +920,7 @@ static const struct event_handler_entry {
     return self.description.hash;
 }
 
-- (void)textSelected:(BOOL)selected{
+- (void)mediaSelected:(BOOL)selected{
     libvlc_media_player_t *p_mi = (libvlc_media_player_t *)_mediaPlayer.libVLCMediaPlayer;
     if (!p_mi)
         return;
@@ -959,9 +959,10 @@ static const struct event_handler_entry {
     
     const char *psz_ids = [selectedTrackIDs componentsJoinedByString: @","].UTF8String;
     libvlc_media_player_select_tracks_by_ids(p_mi, type, psz_ids);
+    NSLog(@"设置当前轨道选中:%@",self.trackName);
 }
 
-- (void)textSelectedExclusively:(BOOL)selected{
+- (void)mediaSelectedExclusively:(BOOL)selected{
     libvlc_media_player_t *p_mi = (libvlc_media_player_t *)_mediaPlayer.libVLCMediaPlayer;
     if (!p_mi)
         return;
@@ -972,6 +973,7 @@ static const struct event_handler_entry {
         return;
     libvlc_media_player_select_track(p_mi, track_t);
     libvlc_media_track_release(track_t);
+    NSLog(@"设置当前轨道选中:%@",self.trackName);
 }
 
 @end
