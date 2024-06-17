@@ -846,6 +846,16 @@ typedef NS_ENUM(unsigned, VLCAudioMixMode)
 
 - (void)stopVideoCallback;
 
+- (void)setVideoFitMode:(int)mode;
+
+- (void)playerLock;
+
+- (void)playerUnlock;
+
+- (void)playerWait;
+
+- (void)playerSignal;
+
 #pragma mark -
 #pragma mark Renderer
 #if !TARGET_OS_TV

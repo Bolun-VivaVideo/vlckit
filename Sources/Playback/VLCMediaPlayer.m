@@ -1450,6 +1450,26 @@ void empty_display(void *opaque, void *picture) {
     libvlc_video_set_callbacks(_playerInstance, NULL, NULL, NULL, NULL);
 }
 
+- (void)setVideoFitMode:(int)mode{
+    libvlc_video_set_display_fit(_playerInstance, mode);
+}
+
+- (void)playerLock{
+    libvlc_media_player_lock(_playerInstance);
+}
+
+- (void)playerUnlock{
+    libvlc_media_player_unlock(_playerInstance);
+}
+
+- (void)playerWait{
+    libvlc_media_player_wait(_playerInstance);
+}
+
+- (void)playerSignal{
+    libvlc_media_player_signal(_playerInstance);
+}
+
 #if TARGET_OS_IPHONE
 - (nullable UIImage *)lastSnapshot {
     if (_snapshots == nil) {
